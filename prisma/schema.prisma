@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SourceRepository {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  author      String
+  sourceUrl   String   @unique
+  githubUrl   String?
+  description String
+  rating      Int      @default(0)
+  lastSyncedAt DateTime?
+  syncStatus  String   @default("PENDING") // PENDING | SYNCING | SYNCED | FAILED
+  syncError   String?
+  skills      Skill[]
+  syncJobs    SyncJob[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Skill {
+  id                 String   @id @default(cuid())
+  sourceRepositoryId String
+  sourceRepository   SourceRepository @relation(fields: [sourceRepositoryId], references: [id], onDelete: Cascade)
+  name               String
+  slug               String   @unique
+  description        String
+  longDescription    String?
+  rawContent         String?
+  embeddingText      String?
+  imageUrl           String?
+  authorName         String?
+  authorUrl          String?
+  repoUrl            String?
+  rating             Int      @default(0)
+  confidenceBase     Float    @default(0.5)
+  lastSyncedAt       DateTime?
+  categories         SkillCategory[]
+  tags               SkillTag[]
+  capabilities       SkillCapability[]
+  relationsFrom      SkillRelation[] @relation("FromSkill")
+  relationsTo        SkillRelation[] @relation("ToSkill")
+  queryMatches       QueryMatch[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([sourceRepositoryId])
+  @@index([name])
+}
+
+model SkillCategory {
+  id       String @id @default(cuid())
+  skillId  String
+  skill    Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  category String
+
+  @@unique([skillId, category])
+  @@index([category])
+}
+
+model SkillTag {
+  id      String @id @default(cuid())
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  tag     String
+
+  @@unique([skillId, tag])
+  @@index([tag])
+}
+
+model SkillCapability {
+  id         String  @id @default(cuid())
+  skillId    String
+  skill      Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  capability String
+  inputType  String?
+  outputType String?
+
+  @@index([skillId])
+}
+
+model SkillRelation {
+  id           String @id @default(cuid())
+  fromSkillId  String
+  toSkillId    String
+  relationType String // "similar" | "extends" | "depends_on" | "alternative"
+  fromSkill    Skill  @relation("FromSkill", fields: [fromSkillId], references: [id], onDelete: Cascade)
+  toSkill      Skill  @relation("ToSkill", fields: [toSkillId], references: [id], onDelete: Cascade)
+
+  @@unique([fromSkillId, toSkillId, relationType])
+}
+
+model SyncJob {
+  id                 String   @id @default(cuid())
+  sourceRepositoryId String?
+  sourceRepository   SourceRepository? @relation(fields: [sourceRepositoryId], references: [id])
+  status             String   @default("PENDING") // PENDING | RUNNING | COMPLETED | FAILED
+  details            String?
+  startedAt          DateTime @default(now())
+  completedAt        DateTime?
+}
+
+model UserQuery {
+  id        String   @id @default(cuid())
+  rawInput  String
+  queryType String   // single_task | multi_task | plan | deliverable
+  tasks     QueryTask[]
+  createdAt DateTime @default(now())
+}
+
+model QueryTask {
+  id           String  @id @default(cuid())
+  userQueryId  String
+  userQuery    UserQuery @relation(fields: [userQueryId], references: [id], onDelete: Cascade)
+  taskText     String
+  position     Int
+  parentTaskId String?
+  matches      QueryMatch[]
+}
+
+model QueryMatch {
+  id            String @id @default(cuid())
+  queryTaskId   String
+  queryTask     QueryTask @relation(fields: [queryTaskId], references: [id], onDelete: Cascade)
+  skillId       String
+  skill         Skill  @relation(fields: [skillId], references: [id])
+  score         Float
+  lexicalScore  Float  @default(0)
+  semanticScore Float  @default(0)
+  ruleScore     Float  @default(0)
+  rationale     String?
+}
