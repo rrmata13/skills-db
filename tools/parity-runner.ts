@@ -22,7 +22,7 @@ type WeightConfig = {
 type Query = {
   id: string;
   text: string;
-  corpus: "default" | "zero_rating";
+  corpus: "default" | "zero_rating" | "empty";
 };
 
 type ScoreEntry = {
@@ -377,7 +377,9 @@ const EDGE_QUERIES: { id: string; text: string; corpus: Query["corpus"] }[] = [
   { id: "edge-08-repeated", text: "docker docker docker docker", corpus: "default" },
   { id: "edge-09-numeric", text: "12345 6789 2024", corpus: "default" },
   { id: "edge-10-hyphen", text: "multi-agent-orchestration-tooling", corpus: "default" },
-  { id: "edge-11-gibberish", text: "asdfqwer zxcvbnm", corpus: "default" },
+  // P1-3: gibberish on isolated empty corpus → zero scores everywhere by construction.
+  // String chosen with no 2+ char overlap with skill text in case anyone routes to a populated corpus.
+  { id: "edge-11-gibberish", text: "qkzplm wjxhfb", corpus: "empty" },
   { id: "edge-12-zerorating", text: "deploy docker container", corpus: "zero_rating" },
 ];
 
@@ -424,11 +426,16 @@ function applyZeroRating(skills: SkillRecord[]): SkillRecord[] {
   return skills.map((s) => ({ ...s, rating: 0 }));
 }
 
+function corpusFor(skills: SkillRecord[], q: Query): SkillRecord[] {
+  if (q.corpus === "empty") return [];
+  if (q.corpus === "zero_rating") return applyZeroRating(skills);
+  return skills;
+}
+
 function runOracle(skills: SkillRecord[], queries: Query[], weights: WeightConfig) {
   const out: ExpectedQueryResult[] = [];
   for (const q of queries) {
-    const corpus = q.corpus === "zero_rating" ? applyZeroRating(skills) : skills;
-    const ranked = scoreCorpus(q.text, corpus, weights);
+    const ranked = scoreCorpus(q.text, corpusFor(skills, q), weights);
     out.push({ query_id: q.id, top10: ranked.slice(0, 10) });
   }
   return out;
