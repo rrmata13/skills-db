@@ -3,12 +3,13 @@
 The TS oracle produces ``tools/parity-corpus.json`` containing the corpus,
 queries, weight configs, and expected per-component scores + top-10
 ordering. This module loads that artifact and exercises ``matcher.py``
-against it.
+against it. Both the production and experiment weight configs are checked;
+the experiment config still asserts per-component category scores within
+1e-6 even though its category weight is 0, so don't treat it as a softer
+test.
 
-Initial run is expected to FAIL on the four intentional divergences in
-matcher.py (tokenizer, lexical normalization, exact match, category).
-SOL-849 fixes them in sequence; tests turn green when matcher.py matches
-production behavior.
+Expected state on a clean main: 0 failures, 0 errors, 1 skipped (the
+``_ParityBase`` skip marker for the abstract base class).
 
 Invoke a single weight config independently:
     python3 -m unittest tools.parity_tests.ProductionWeightsParity -v

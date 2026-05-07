@@ -1,24 +1,25 @@
-"""Intentionally-divergent Python matcher used to validate the parity harness.
+"""Production-equivalent Python port of ``lib/services/scoring.ts``.
 
-This module reproduces the four known divergences from the legacy port so
-that SOL-849 has a real punchlist. Production behavior lives in
-``lib/services/scoring.ts``; do not "fix" the divergences here without
-updating SOL-849's plan.
+This module is the reference Python implementation of the production TS
+scorer. Per parity test (`tools/parity_tests.py`), all 27 queries × 2 weight
+configurations produce identical top-10 ordering and per-component scores
+(within 1e-6) versus the TS oracle in `tools/parity-corpus.json`.
 
-Divergences (versus production):
-    1. Tokenizer regex ``[a-z0-9]+`` (drops hyphens), legacy stop-word
-       subset (~25 words), length filter ``> 2`` (production keeps tokens
-       longer than 1 char and preserves hyphens).
-    2. Lexical normalization divides by ``len(q_tokens) * 8.5`` with no
-       cap at 1 (production caps with ``min(1, score / (totalWeight * 0.3))``).
-    3. Exact match returns ``1.0`` for any substring overlap of name/tag
-       (production: 1.0 only on equality, 0.5 on substring, 0.7 on tag eq).
-    4. Category score is ``sum / count`` of category-keyword matches with
-       no tag-overlap fallback (production: ``max`` with tag fallback).
+Implementation notes:
+    1. Tokenizer uses an explicit ASCII character class (``[^a-zA-Z0-9_\\s-]``)
+       to match JavaScript ``\\w`` semantics, which Python's default Unicode
+       ``\\w`` would diverge from on inputs like "résumé" or "日本語".
+    2. Lexical caps at 1.0 with divisor ``totalWeight * 0.3``, where
+       ``totalWeight = len(q_tokens) * 8.5`` (3+2+2+1.5 per query token).
+    3. Exact match has no empty-query guard: empty query yields 1.0 for
+       skills with empty names and 0.5 for any skill with a non-empty name
+       (because "" is a substring of every string).
+    4. Category uses ``max`` over all matching categories with tag-overlap
+       fallback when the skill doesn't carry the matched category directly.
 
-``STOP_WORDS`` and ``CATEGORY_KEYWORDS`` are copied verbatim from
-production for documentation; the divergent ``tokenize`` deliberately
-uses ``_LEGACY_STOP_WORDS`` instead.
+If you intend to change scoring semantics, change `lib/services/scoring.ts`
+first, regenerate `tools/parity-corpus.json` via `tools/parity-runner.ts`,
+then update this module to keep the parity gate green.
 """
 
 from __future__ import annotations
@@ -66,27 +67,19 @@ CATEGORY_KEYWORDS: Mapping[str, Sequence[str]] = {
 }
 
 # ---------------------------------------------------------------------------
-# Divergence 1: legacy tokenizer.
+# Tokenizer (production-equivalent).
 # ---------------------------------------------------------------------------
-
-_LEGACY_STOP_WORDS: frozenset[str] = frozenset(
-    [
-        "the", "and", "of", "to", "with", "is", "a", "an", "in", "on",
-        "for", "by", "or", "but", "be", "at", "as", "from", "are",
-        "was", "were", "this", "that", "it",
-    ]
-)
-
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
+# JS `\w` matches ASCII [A-Za-z0-9_] only; Python `\w` defaults to Unicode and
+# would keep characters like "résumé" or "日本語" that production strips. Use
+# an explicit ASCII class to preserve JS regex semantics.
+_NON_TOKEN_RE = re.compile(r"[^a-zA-Z0-9_\s-]")
 
 
 def tokenize(text: str) -> list[str]:
     if not text:
         return []
-    return [
-        t for t in _TOKEN_RE.findall(text.lower())
-        if len(t) > 2 and t not in _LEGACY_STOP_WORDS
-    ]
+    cleaned = _NON_TOKEN_RE.sub(" ", text.lower())
+    return [w for w in cleaned.split() if len(w) > 1 and w not in STOP_WORDS]
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +107,7 @@ def _category_strings(skill: Mapping) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Divergence 2: lexical without cap, divisor (len(q_tokens) * 8.5).
+# Lexical (production-equivalent: cap at 1.0, divisor totalWeight * 0.3).
 # ---------------------------------------------------------------------------
 
 def compute_lexical_score(query: str, skill: Mapping) -> float:
@@ -131,6 +124,7 @@ def compute_lexical_score(query: str, skill: Mapping) -> float:
         cap_tokens.extend(tokenize(c))
 
     score = 0.0
+    total_weight = 0.0
     for qt in q_tokens:
         if any(qt in nt or nt in qt for nt in name_tokens):
             score += 3
@@ -140,45 +134,53 @@ def compute_lexical_score(query: str, skill: Mapping) -> float:
             score += 2
         if any(qt in ct or ct in qt for ct in cap_tokens):
             score += 1.5
-    return score / (len(q_tokens) * 8.5)
+        total_weight += 3 + 2 + 2 + 1.5
+    return min(1.0, score / (total_weight * 0.3))
 
 
 # ---------------------------------------------------------------------------
-# Divergence 3: exact match — any substring overlap returns 1.0.
+# Exact match (production-equivalent: equality 1.0, substring 0.5, tag eq 0.7).
 # ---------------------------------------------------------------------------
+# No empty-query guard: production returns 0.5 for every non-empty-name skill
+# when query is "" (because "" is a substring of every string), and 1.0 if the
+# name is also "". Removing the early-return is what makes edge-01-empty pass.
 
 def compute_exact_match_boost(query: str, skill: Mapping) -> float:
     q = (query or "").lower()
-    if not q:
-        return 0.0
     name = _name_of(skill).lower()
-    if q and (q in name or name in q):
+    if name == q:
         return 1.0
+    if q in name or name in q:
+        return 0.5
     for tag in _tag_strings(skill):
-        tl = tag.lower()
-        if q and (q in tl or tl in q):
-            return 1.0
+        if tag.lower() == q:
+            return 0.7
     return 0.0
 
 
 # ---------------------------------------------------------------------------
-# Divergence 4: category — sum/count of matches with no tag fallback.
+# Category (production-equivalent: max with tag-overlap fallback).
 # ---------------------------------------------------------------------------
 
 def compute_category_score(query: str, skill: Mapping) -> float:
     q = (query or "").lower()
     skill_categories = set(_category_strings(skill))
-    matches: list[float] = []
+    skill_tags = [t.lower() for t in _tag_strings(skill)]
+    max_score = 0.0
     for category, keywords in CATEGORY_KEYWORDS.items():
-        if any(kw in q for kw in keywords):
-            matches.append(1.0 if category in skill_categories else 0.0)
-    if not matches:
-        return 0.0
-    return sum(matches) / len(matches)
+        query_match = any(kw in q for kw in keywords)
+        if not query_match:
+            continue
+        if category in skill_categories:
+            max_score = max(max_score, 1.0)
+        else:
+            tag_overlap = sum(1 for kw in keywords if any(kw in st for st in skill_tags))
+            max_score = max(max_score, min(1.0, tag_overlap * 0.3))
+    return max_score
 
 
 # ---------------------------------------------------------------------------
-# Faithful: popularity (matches production exactly).
+# Popularity (matches production exactly).
 # ---------------------------------------------------------------------------
 
 def compute_popularity_score(skill: Mapping, max_rating: float) -> float:
