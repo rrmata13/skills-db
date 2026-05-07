@@ -37,7 +37,11 @@ PLACES = 6
 
 def _corpus_for(query_id: str):
     q = QUERIES_BY_ID[query_id]
-    return SKILLS_ZERO_RATING if q["corpus"] == "zero_rating" else SKILLS_DEFAULT
+    if q["corpus"] == "empty":
+        return []
+    if q["corpus"] == "zero_rating":
+        return SKILLS_ZERO_RATING
+    return SKILLS_DEFAULT
 
 
 class _ParityBase(unittest.TestCase):

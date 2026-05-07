@@ -25543,8 +25543,8 @@
     },
     {
       "id": "edge-11-gibberish",
-      "text": "asdfqwer zxcvbnm",
-      "corpus": "default"
+      "text": "qkzplm wjxhfb",
+      "corpus": "empty"
     },
     {
       "id": "edge-12-zerorating",
@@ -27681,88 +27681,7 @@
       },
       {
         "query_id": "edge-11-gibberish",
-        "top10": [
-          {
-            "slug": "cq-resume-generator",
-            "lexical": 0.3921568627450981,
-            "category": 0,
-            "popularity": 0.7398023219560924,
-            "exactMatch": 0,
-            "total": 0.3044625531445351
-          },
-          {
-            "slug": "openclaw-core",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 1,
-            "exactMatch": 0,
-            "total": 0.12
-          },
-          {
-            "slug": "awesome-chatgpt-prompts",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9915072751091522,
-            "exactMatch": 0,
-            "total": 0.11898087301309826
-          },
-          {
-            "slug": "ai-tools-system-prompts",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9686987716741335,
-            "exactMatch": 0,
-            "total": 0.11624385260089602
-          },
-          {
-            "slug": "openclaw-skills-manager",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9433472989444598,
-            "exactMatch": 0,
-            "total": 0.11320167587333517
-          },
-          {
-            "slug": "openclaw-workflow-engine",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9193096446255002,
-            "exactMatch": 0,
-            "total": 0.11031715735506002
-          },
-          {
-            "slug": "claude-code-cli",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9146550247694006,
-            "exactMatch": 0,
-            "total": 0.10975860297232808
-          },
-          {
-            "slug": "anthropic-docx",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          },
-          {
-            "slug": "anthropic-official-skills",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          },
-          {
-            "slug": "anthropic-pdf",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          }
-        ]
+        "top10": []
       },
       {
         "query_id": "edge-12-zerorating",
@@ -29978,88 +29897,7 @@
       },
       {
         "query_id": "edge-11-gibberish",
-        "top10": [
-          {
-            "slug": "cq-resume-generator",
-            "lexical": 0.3921568627450981,
-            "category": 0,
-            "popularity": 0.7398023219560924,
-            "exactMatch": 0,
-            "total": 0.3044625531445351
-          },
-          {
-            "slug": "openclaw-core",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 1,
-            "exactMatch": 0,
-            "total": 0.12
-          },
-          {
-            "slug": "awesome-chatgpt-prompts",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9915072751091522,
-            "exactMatch": 0,
-            "total": 0.11898087301309826
-          },
-          {
-            "slug": "ai-tools-system-prompts",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9686987716741335,
-            "exactMatch": 0,
-            "total": 0.11624385260089602
-          },
-          {
-            "slug": "openclaw-skills-manager",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9433472989444598,
-            "exactMatch": 0,
-            "total": 0.11320167587333517
-          },
-          {
-            "slug": "openclaw-workflow-engine",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9193096446255002,
-            "exactMatch": 0,
-            "total": 0.11031715735506002
-          },
-          {
-            "slug": "claude-code-cli",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9146550247694006,
-            "exactMatch": 0,
-            "total": 0.10975860297232808
-          },
-          {
-            "slug": "anthropic-docx",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          },
-          {
-            "slug": "anthropic-official-skills",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          },
-          {
-            "slug": "anthropic-pdf",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          }
-        ]
+        "top10": []
       },
       {
         "query_id": "edge-12-zerorating",
