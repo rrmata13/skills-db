@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const q = searchParams.get("q") || "";
     const category = searchParams.get("category") || "";
     const tags = searchParams.get("tags") || "";
+    const status = searchParams.get("status") || "";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
@@ -29,6 +30,12 @@ export async function GET(request: NextRequest) {
     if (tags) {
       const tagList = tags.split(",").map((t) => t.trim());
       where.tags = { some: { tag: { in: tagList } } };
+    }
+
+    if (status === "installed") {
+      where.installedAt = { not: null };
+    } else if (status === "unreviewed" || status === "favorited" || status === "hidden") {
+      where.curationStatus = status;
     }
 
     const [skills, total] = await Promise.all([

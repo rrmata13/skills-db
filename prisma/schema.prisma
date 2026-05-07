@@ -48,11 +48,17 @@ model Skill {
   relationsFrom      SkillRelation[] @relation("FromSkill")
   relationsTo        SkillRelation[] @relation("ToSkill")
   queryMatches       QueryMatch[]
+  curationStatus     String   @default("unreviewed") // unreviewed | favorited | hidden
+  notes              String?
+  installedAt        DateTime?
+  installedPath      String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   @@index([sourceRepositoryId])
   @@index([name])
+  @@index([curationStatus])
+  @@index([installedAt])
 }
 
 model SkillCategory {

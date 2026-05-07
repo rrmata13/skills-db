@@ -115,6 +115,8 @@ export interface ApiResponse<T> {
 // UI Types
 // ========================
 
+export type CurationStatus = "unreviewed" | "favorited" | "hidden";
+
 export interface SkillWithRelations {
   id: string;
   name: string;
@@ -128,6 +130,10 @@ export interface SkillWithRelations {
   repoUrl?: string | null;
   rating: number;
   confidenceBase: number;
+  curationStatus: CurationStatus;
+  notes?: string | null;
+  installedAt?: Date | string | null;
+  installedPath?: string | null;
   sourceRepository: {
     id: string;
     name: string;
@@ -141,6 +147,14 @@ export interface SkillWithRelations {
     inputType?: string | null;
     outputType?: string | null;
   }[];
+}
+
+export interface CurationStats {
+  total: number;
+  unreviewed: number;
+  favorited: number;
+  hidden: number;
+  installed: number;
 }
 
 export interface CategoryWithCount {

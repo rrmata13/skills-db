@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RefreshCw, Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import type { CurationStats } from "@/types";
 
 interface SourceData {
   id: string;
@@ -27,6 +29,27 @@ interface SourceData {
   skillCount: number;
 }
 
+const ERROR_KIND_LABELS: Record<string, { label: string; hint: string }> = {
+  auth: { label: "Auth", hint: "Token missing or invalid. Check GITHUB_TOKEN in .env." },
+  rate_limit: { label: "Rate limit", hint: "Hit GitHub rate limit. Retry later or add a token." },
+  not_found: { label: "Not found", hint: "Repo or branch does not exist (or is private)." },
+  timeout: { label: "Timeout", hint: "GitHub did not respond in time. Network or service issue." },
+  transient: { label: "Transient", hint: "Temporary failure. Try again." },
+  parse: { label: "Parse", hint: "SKILL.md frontmatter could not be parsed." },
+  no_mapping: { label: "No mapping", hint: "Source slug isn't in REPO_MAP yet." },
+  no_adapter: { label: "No adapter", hint: "No adapter can handle this source URL." },
+  unknown: { label: "Error", hint: "Unclassified failure." },
+};
+
+function parseSyncError(syncError?: string | null): { kind: string; label: string; hint: string; raw: string } | null {
+  if (!syncError) return null;
+  const m = syncError.match(/^\[(\w+)\]\s*(.*)$/);
+  const kind = m?.[1] || "unknown";
+  const raw = m?.[2] || syncError;
+  const meta = ERROR_KIND_LABELS[kind] || ERROR_KIND_LABELS.unknown;
+  return { kind, label: meta.label, hint: meta.hint, raw };
+}
+
 interface HealthData {
   status: string;
   database: string;
@@ -38,6 +61,7 @@ interface HealthData {
 export default function AdminPage() {
   const [sources, setSources] = useState<SourceData[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
+  const [curation, setCuration] = useState<CurationStats | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{
     total: number;
@@ -47,14 +71,17 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [sourcesRes, healthRes] = await Promise.all([
+      const [sourcesRes, healthRes, curateRes] = await Promise.all([
         fetch("/api/sources"),
         fetch("/api/health"),
+        fetch("/api/curate/stats"),
       ]);
       const sourcesData = await sourcesRes.json();
       const healthData = await healthRes.json();
+      const curateData = await curateRes.json();
       setSources(sourcesData.data || []);
       setHealth(healthData.data || null);
+      setCuration(curateData.data || null);
     } catch {
       // Fetch failed
     }
@@ -148,6 +175,44 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Curation Stats */}
+      {curation && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Link href="/curate?status=unreviewed">
+            <Card className="hover:bg-secondary/40 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Unreviewed</p>
+                <p className="text-lg font-semibold mt-1">{curation.unreviewed}</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/curate?status=favorited">
+            <Card className="hover:bg-secondary/40 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Favorited</p>
+                <p className="text-lg font-semibold mt-1">{curation.favorited}</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/curate?status=installed">
+            <Card className="hover:bg-secondary/40 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Installed</p>
+                <p className="text-lg font-semibold mt-1">{curation.installed}</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/curate?status=hidden">
+            <Card className="hover:bg-secondary/40 transition-colors cursor-pointer">
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Hidden</p>
+                <p className="text-lg font-semibold mt-1">{curation.hidden}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      )}
+
       {/* Sync Result */}
       {syncResult && (
         <Card>
@@ -186,31 +251,55 @@ export default function AdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sources.map((source) => (
-                <TableRow key={source.id}>
-                  <TableCell className="font-medium">{source.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {source.author}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {source.skillCount}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {source.rating.toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1.5">
-                      {statusIcon(source.syncStatus)}
-                      <span className="text-xs">{source.syncStatus}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {source.lastSyncedAt
-                      ? new Date(source.lastSyncedAt).toLocaleString()
-                      : "Never"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {sources.map((source) => {
+                const errInfo = parseSyncError(source.syncError);
+                return (
+                  <Fragment key={source.id}>
+                    <TableRow>
+                      <TableCell className="font-medium">{source.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {source.author}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {source.skillCount}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {source.rating.toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1.5">
+                          {statusIcon(source.syncStatus)}
+                          <span className="text-xs">{source.syncStatus}</span>
+                          {errInfo && (
+                            <Badge className="bg-red-500/15 text-red-500 ml-1 text-[10px] uppercase">
+                              {errInfo.label}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {source.lastSyncedAt
+                          ? new Date(source.lastSyncedAt).toLocaleString()
+                          : "Never"}
+                      </TableCell>
+                    </TableRow>
+                    {errInfo && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="bg-red-500/5 text-xs text-red-400">
+                          <div className="flex flex-col gap-0.5">
+                            <span>
+                              <span className="font-medium">{errInfo.hint}</span>
+                            </span>
+                            <span className="font-mono text-muted-foreground truncate">
+                              {errInfo.raw}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

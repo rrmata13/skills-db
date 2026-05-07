@@ -10,8 +10,15 @@ export async function POST() {
       error: null,
     });
   } catch (error) {
+    console.error("[POST /api/sync/sources]", error);
     return NextResponse.json(
-      { data: null, error: "Sync failed" },
+      {
+        data: null,
+        error: {
+          kind: "internal",
+          cause: error instanceof Error ? error.message : String(error),
+        },
+      },
       { status: 500 }
     );
   }

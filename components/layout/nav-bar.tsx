@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Search, Layers, Target, Map, Settings, Zap } from "lucide-react";
+import { Search, Layers, Target, Map, Settings, Zap, Bookmark } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Find Skill", icon: Search },
   { href: "/match", label: "Match Tasks", icon: Target },
   { href: "/plan", label: "Map Plan", icon: Map },
   { href: "/categories", label: "Browse", icon: Layers },
+  { href: "/curate", label: "Curate", icon: Bookmark },
   { href: "/admin", label: "Admin", icon: Settings },
 ];
 

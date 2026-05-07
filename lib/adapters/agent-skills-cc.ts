@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { SourceAdapter } from "./types";
 import { RawSkillData, SourceAdapterResult } from "@/types";
 import { SOURCE_REPOSITORIES } from "@/lib/constants";
+import { fetchWithRetry } from "./http";
 
 export class AgentSkillsCCAdapter implements SourceAdapter {
   readonly name = "agent-skills-cc";
@@ -11,17 +12,12 @@ export class AgentSkillsCCAdapter implements SourceAdapter {
   }
 
   async fetch(sourceUrl: string, sourceSlug: string): Promise<SourceAdapterResult> {
-    const response = await fetch(sourceUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
-      signal: AbortSignal.timeout(15000),
+    const response = await fetchWithRetry(sourceUrl, {
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      timeoutMs: 15000,
+      maxRetries: 2,
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${sourceUrl}: ${response.status}`);
-    }
 
     const html = await response.text();
     const $ = cheerio.load(html);

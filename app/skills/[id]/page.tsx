@@ -7,6 +7,8 @@ import { Star, ExternalLink, ArrowLeft, Zap } from "lucide-react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CuratePanel } from "./curate-panel";
+import type { CurationStatus } from "@/types";
 
 export default async function SkillDetailPage({
   params,
@@ -99,6 +101,16 @@ export default async function SkillDetailPage({
           )}
         </div>
       </div>
+
+      <CuratePanel
+        id={skill.id}
+        initial={{
+          curationStatus: skill.curationStatus as CurationStatus,
+          notes: skill.notes,
+          installedAt: skill.installedAt ? skill.installedAt.toISOString() : null,
+          installedPath: skill.installedPath,
+        }}
+      />
 
       <Separator />
 
