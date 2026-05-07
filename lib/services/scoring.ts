@@ -4,7 +4,7 @@ import { TfIdfVectorizer } from "./embeddings";
 import { SCORING_WEIGHTS_NO_SEMANTIC } from "@/lib/constants";
 import { MatchResult } from "@/types";
 
-interface SkillRecord {
+export interface SkillRecord {
   id: string;
   name: string;
   slug: string;
@@ -49,7 +49,7 @@ async function getAllSkills(): Promise<SkillRecord[]> {
   });
 }
 
-function computeLexicalScore(query: string, skill: SkillRecord): number {
+export function computeLexicalScore(query: string, skill: SkillRecord): number {
   const queryTokens = tokenize(query);
   if (queryTokens.length === 0) return 0;
 
@@ -93,7 +93,7 @@ function computeSemanticScore(
   return vectorizer.cosineSimilarity(queryVector, skillVector);
 }
 
-function computeCategoryScore(query: string, skill: SkillRecord): number {
+export function computeCategoryScore(query: string, skill: SkillRecord): number {
   const queryLower = query.toLowerCase();
   const skillCategories = skill.categories.map((c) => c.category);
 
@@ -116,12 +116,12 @@ function computeCategoryScore(query: string, skill: SkillRecord): number {
   return maxScore;
 }
 
-function computePopularityScore(skill: SkillRecord, maxRating: number): number {
+export function computePopularityScore(skill: SkillRecord, maxRating: number): number {
   if (maxRating === 0) return 0;
   return Math.log(skill.rating + 1) / Math.log(maxRating + 1);
 }
 
-function computeExactMatchBoost(query: string, skill: SkillRecord): number {
+export function computeExactMatchBoost(query: string, skill: SkillRecord): number {
   const queryLower = query.toLowerCase();
   const nameLower = skill.name.toLowerCase();
 
