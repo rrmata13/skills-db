@@ -1,6 +1,8 @@
 "use client";
 
+import { Database } from "lucide-react";
 import { SkillCard } from "./skill-card";
+import { EmptyState } from "@/components/empty-state";
 
 interface SkillGridProps {
   skills: {
@@ -18,9 +20,11 @@ interface SkillGridProps {
 export function SkillGrid({ skills }: SkillGridProps) {
   if (skills.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>No skills found.</p>
-      </div>
+      <EmptyState
+        icon={Database}
+        title="No skills to show yet"
+        description="The skills catalog is empty. Once skills are ingested from upstream repositories, they'll appear here."
+      />
     );
   }
 
