@@ -4,7 +4,7 @@ A web app that indexes AI agent skills from external repositories, categorizes t
 
 ## Features
 
-- **Skill Search** -- Browse and search 251 AI skills from 29 source repositories
+- **Skill Search** -- Browse and search 415 AI skills from 29 source repositories
 - **Single Task Matching** -- Describe a task and get ranked skill recommendations with confidence scores
 - **Multi-Task Matching** -- Submit multiple tasks and get skill recommendations for each
 - **Plan Mapping** -- Paste a project plan and get a sequenced skill application roadmap
@@ -31,7 +31,7 @@ npm install
 # 2. Create your local .env from the template (REQUIRED — step 3 fails without it)
 cp .env.example .env
 
-# 3. Create database and run migrations (auto-seeds 251 skills via prisma/seed.ts)
+# 3. Create database and run migrations (auto-seeds 415 skills via prisma/seed.ts)
 npx prisma migrate dev
 
 # 4. Start the dev server
@@ -246,7 +246,7 @@ This repo is mid-way through a 4-week stabilization → packaging → beta → d
 ## Design Decisions
 
 1. **SQLite for MVP** -- Zero-config, instant dev. One-line swap to PostgreSQL via Prisma.
-2. **In-memory TF-IDF** -- With 251 skills, in-memory scoring gives full control and runs instantly. Upgrade path to pgvector for scale.
+2. **In-memory TF-IDF** -- With 415 skills, in-memory scoring gives full control and runs instantly. Upgrade path to pgvector for scale.
 3. **Rule-based plan decomposition** -- No external API dependencies. LLM-assisted decomposition as future enhancement.
 4. **Mock data fallback** -- System works without internet. Real scraper tries agent-skills.cc first, falls back to mock data.
 5. **Embedding abstraction** -- TF-IDF now, swap to OpenAI/Gemini via env var later.
