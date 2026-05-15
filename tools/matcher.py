@@ -110,6 +110,32 @@ def _category_strings(skill: Mapping) -> list[str]:
 # Lexical (production-equivalent: cap at 1.0, divisor totalWeight * 0.3).
 # ---------------------------------------------------------------------------
 
+def _field_matches(qt: str, qt_next: str | None, field_tokens: Sequence[str]) -> bool:
+    """SOL-990 AI-1 — Python mirror of fieldMatches in scoring.ts.
+
+    Replaces the previous ``qt in ft or ft in qt`` bidirectional substring rule
+    with three deterministic alternatives:
+        1. Exact token equality (post-tokenize, stop-words already stripped).
+        2. Ordered phrase/bigram overlap: (qt, qt_next) adjacent in field_tokens.
+        3. Safe prefix/stem: ``startswith`` only when BOTH tokens are length ≥ 4
+           (per Codex R5 — never for stop-word fragments or short noise).
+    """
+    # 1. Exact token overlap
+    if qt in field_tokens:
+        return True
+    # 2. Ordered phrase/bigram overlap
+    if qt_next is not None:
+        for j in range(len(field_tokens) - 1):
+            if field_tokens[j] == qt and field_tokens[j + 1] == qt_next:
+                return True
+    # 3. Safe prefix/stem (length >= 4 on both sides)
+    if len(qt) >= 4:
+        for ft in field_tokens:
+            if len(ft) >= 4 and (ft.startswith(qt) or qt.startswith(ft)):
+                return True
+    return False
+
+
 def compute_lexical_score(query: str, skill: Mapping) -> float:
     q_tokens = tokenize(query)
     if not q_tokens:
@@ -125,14 +151,16 @@ def compute_lexical_score(query: str, skill: Mapping) -> float:
 
     score = 0.0
     total_weight = 0.0
-    for qt in q_tokens:
-        if any(qt in nt or nt in qt for nt in name_tokens):
+    for i, qt in enumerate(q_tokens):
+        qt_next = q_tokens[i + 1] if i + 1 < len(q_tokens) else None
+
+        if _field_matches(qt, qt_next, name_tokens):
             score += 3
-        if any(qt in dt or dt in qt for dt in desc_tokens):
+        if _field_matches(qt, qt_next, desc_tokens):
             score += 2
-        if any(qt in tt or tt in qt for tt in tag_tokens):
+        if _field_matches(qt, qt_next, tag_tokens):
             score += 2
-        if any(qt in ct or ct in qt for ct in cap_tokens):
+        if _field_matches(qt, qt_next, cap_tokens):
             score += 1.5
         total_weight += 3 + 2 + 2 + 1.5
     return min(1.0, score / (total_weight * 0.3))

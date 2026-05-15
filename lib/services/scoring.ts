@@ -49,6 +49,38 @@ async function getAllSkills(): Promise<SkillRecord[]> {
   });
 }
 
+// SOL-990 AI-1 — Per Codex R5 verdict (SOL-987):
+//   Replace bidirectional substring (`nt.includes(qt) || qt.includes(nt)`) with
+//   normalized token overlap + ordered phrase/bigram overlap. Allow prefix/stem
+//   behavior ONLY when both tokens are length ≥ 4 (never for stop-word fragments
+//   or short noise like `ci`/`cd`/`ai`).
+//
+// Old primitive false-positives observed in SOL-986:
+//   - `ci` in `speCIfication` (devops false-match)
+//   - `tool` in "AI tool" (cli-tooling false-match for non-CLI skills)
+//   - `review` in feedback analysis (coding false-match for non-code review)
+// New primitive eliminates these by requiring either exact token equality,
+// ordered phrase coincidence, or a safe-length prefix relationship.
+function fieldMatches(qt: string, qtNext: string | undefined, fieldTokens: string[]): boolean {
+  // 1. Exact token overlap (post-tokenize, stop-words already stripped).
+  if (fieldTokens.includes(qt)) return true;
+  // 2. Ordered phrase/bigram overlap: (qt, qtNext) adjacent in field tokens.
+  if (qtNext !== undefined) {
+    for (let j = 0; j + 1 < fieldTokens.length; j++) {
+      if (fieldTokens[j] === qt && fieldTokens[j + 1] === qtNext) return true;
+    }
+  }
+  // 3. Safe prefix/stem — only when BOTH tokens are length ≥ 4 (Codex R5).
+  if (qt.length >= 4) {
+    for (const ft of fieldTokens) {
+      if (ft.length >= 4 && (ft.startsWith(qt) || qt.startsWith(ft))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function computeLexicalScore(query: string, skill: SkillRecord): number {
   const queryTokens = tokenize(query);
   if (queryTokens.length === 0) return 0;
@@ -62,21 +94,24 @@ export function computeLexicalScore(query: string, skill: SkillRecord): number {
   let matchScore = 0;
   let totalWeight = 0;
 
-  for (const qt of queryTokens) {
+  for (let i = 0; i < queryTokens.length; i++) {
+    const qt = queryTokens[i];
+    const qtNext = i + 1 < queryTokens.length ? queryTokens[i + 1] : undefined;
+
     // Name match (highest weight)
-    if (nameTokens.some((nt) => nt.includes(qt) || qt.includes(nt))) {
+    if (fieldMatches(qt, qtNext, nameTokens)) {
       matchScore += 3;
     }
     // Description match
-    if (descTokens.some((dt) => dt.includes(qt) || qt.includes(dt))) {
+    if (fieldMatches(qt, qtNext, descTokens)) {
       matchScore += 2;
     }
     // Tag match
-    if (tagTokens.some((tt) => tt.includes(qt) || qt.includes(tt))) {
+    if (fieldMatches(qt, qtNext, tagTokens)) {
       matchScore += 2;
     }
     // Capability match
-    if (capTokens.some((ct) => ct.includes(qt) || qt.includes(ct))) {
+    if (fieldMatches(qt, qtNext, capTokens)) {
       matchScore += 1.5;
     }
     totalWeight += 3 + 2 + 2 + 1.5;
