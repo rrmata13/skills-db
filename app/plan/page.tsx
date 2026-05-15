@@ -6,7 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MatchResults } from "@/components/match/match-results";
-import { Map, Loader2, Download, ChevronDown, ChevronRight } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import {
+  Map,
+  Loader2,
+  Download,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  SearchX,
+} from "lucide-react";
 import type { PlanDecomposition } from "@/types";
 
 const EXAMPLE_PLAN = `1. Set up a multi-platform chatbot infrastructure
@@ -19,6 +28,7 @@ const EXAMPLE_PLAN = `1. Set up a multi-platform chatbot infrastructure
 export default function PlanPage() {
   const [planText, setPlanText] = useState("");
   const [result, setResult] = useState<PlanDecomposition | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
@@ -36,11 +46,13 @@ export default function PlanPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setResult(data.data || null);
+      setSubmitted(true);
       if (data.data?.tasks?.length > 0) {
         setExpandedTasks(new Set([0]));
       }
     } catch (e) {
       setResult(null);
+      setSubmitted(true);
       setError(e instanceof Error ? e.message : "Failed to map plan. Please try again.");
     }
     setLoading(false);
@@ -114,7 +126,30 @@ export default function PlanPage() {
         </div>
       </div>
 
-      {result && (
+      {!loading && !submitted && !result && (
+        <EmptyState
+          icon={ClipboardList}
+          title="Paste a plan to map it to skills"
+          description={
+            <>
+              Drop in a numbered task list, deliverable description, or rough
+              roadmap. We&rsquo;ll break it into steps and rank skills for each
+              one. Use <span className="font-medium text-foreground">Load Example</span>{" "}
+              to see what comes out.
+            </>
+          }
+        />
+      )}
+
+      {!loading && submitted && !error && result && result.tasks.length === 0 && (
+        <EmptyState
+          icon={SearchX}
+          title="Couldn't extract any tasks"
+          description="We couldn't break the input into discrete steps. Try a numbered list or short bullet points (one task per line)."
+        />
+      )}
+
+      {result && result.tasks.length > 0 && (
         <div className="space-y-6">
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4">

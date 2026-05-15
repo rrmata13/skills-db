@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { CATEGORIES } from "@/lib/constants";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import {
   Code,
   Workflow,
@@ -15,6 +17,7 @@ import {
   Users,
   Library,
   Plug,
+  Layers,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -58,35 +61,50 @@ export default async function CategoriesPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {categories.map((cat) => {
-          const Icon = CATEGORY_ICONS[cat.slug] || Plug;
-          return (
-            <Link key={cat.slug} href={`/?category=${cat.slug}`}>
-              <Card className="group hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all cursor-pointer">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-sm">{cat.name}</CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {cat.count} skill{cat.count !== 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {cat.description}
-                  </p>
-                </CardContent>
-              </Card>
+      {categories.length === 0 ? (
+        <EmptyState
+          icon={Layers}
+          title="No categories yet"
+          description="The skills catalog hasn't been populated, so there are no categories to browse. Once skills are ingested, they'll show up here grouped by category."
+          action={
+            <Link href="/">
+              <Button variant="outline" size="sm">
+                Back to home
+              </Button>
             </Link>
-          );
-        })}
-      </div>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {categories.map((cat) => {
+            const Icon = CATEGORY_ICONS[cat.slug] || Plug;
+            return (
+              <Link key={cat.slug} href={`/?category=${cat.slug}`}>
+                <Card className="group hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all cursor-pointer">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">{cat.name}</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          {cat.count} skill{cat.count !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {cat.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

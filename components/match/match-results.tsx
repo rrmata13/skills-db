@@ -3,7 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScoreBreakdown } from "./score-breakdown";
-import { Star, ExternalLink } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { Star, ExternalLink, SearchX } from "lucide-react";
 import Link from "next/link";
 import type { MatchResult } from "@/types";
 
@@ -15,9 +16,11 @@ interface MatchResultsProps {
 export function MatchResults({ results, title }: MatchResultsProps) {
   if (results.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No matching skills found. Try a different query.
-      </div>
+      <EmptyState
+        icon={SearchX}
+        title="No matching skills"
+        description="Nothing scored high enough for this task. Try rephrasing it with more concrete tools, platforms, or outcomes."
+      />
     );
   }
 

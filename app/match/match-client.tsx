@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { MatchResults } from "@/components/match/match-results";
-import { Zap, List, Loader2 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { Zap, List, Loader2, Sparkles, SearchX } from "lucide-react";
 import type { MatchResult, TaskMatchResult } from "@/types";
 
 export function MatchClient() {
@@ -17,6 +18,9 @@ export function MatchClient() {
   const [multiQuery, setMultiQuery] = useState("");
   const [singleResults, setSingleResults] = useState<MatchResult[]>([]);
   const [multiResults, setMultiResults] = useState<TaskMatchResult[]>([]);
+  const [singleSubmitted, setSingleSubmitted] = useState(false);
+  const [multiSubmitted, setMultiSubmitted] = useState(false);
+  const [lastSingleQuery, setLastSingleQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("single");
@@ -32,6 +36,7 @@ export function MatchClient() {
     if (!q.trim()) return;
     setLoading(true);
     setError(null);
+    setLastSingleQuery(q);
     try {
       const res = await fetch("/api/match/task", {
         method: "POST",
@@ -41,8 +46,10 @@ export function MatchClient() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setSingleResults(data.data?.results || []);
+      setSingleSubmitted(true);
     } catch (e) {
       setSingleResults([]);
+      setSingleSubmitted(true);
       setError(e instanceof Error ? e.message : "Failed to match task. Please try again.");
     }
     setLoading(false);
@@ -65,8 +72,10 @@ export function MatchClient() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setMultiResults(data.data?.results || []);
+      setMultiSubmitted(true);
     } catch (e) {
       setMultiResults([]);
+      setMultiSubmitted(true);
       setError(e instanceof Error ? e.message : "Failed to match tasks. Please try again.");
     }
     setLoading(false);
@@ -124,7 +133,29 @@ export function MatchClient() {
           </form>
 
           {singleResults.length > 0 && (
-            <MatchResults results={singleResults} title={`Results for: "${singleQuery}"`} />
+            <MatchResults results={singleResults} title={`Results for: "${lastSingleQuery}"`} />
+          )}
+
+          {!loading && !singleSubmitted && singleResults.length === 0 && (
+            <EmptyState
+              icon={Sparkles}
+              title="Describe a task to find skills"
+              description="Enter a sentence or two about what you're trying to build. We'll match it against the skills catalog and rank the best fits."
+            />
+          )}
+
+          {!loading && singleSubmitted && singleResults.length === 0 && !error && (
+            <EmptyState
+              icon={SearchX}
+              title="No matching skills found"
+              description={
+                <>
+                  Nothing scored high enough for{" "}
+                  <span className="font-medium text-foreground">&ldquo;{lastSingleQuery}&rdquo;</span>.
+                  Try rephrasing with concrete tools, platforms, or outcomes.
+                </>
+              }
+            />
           )}
         </TabsContent>
 
@@ -166,6 +197,22 @@ export function MatchClient() {
                 </div>
               ))}
             </div>
+          )}
+
+          {!loading && !multiSubmitted && multiResults.length === 0 && (
+            <EmptyState
+              icon={List}
+              title="Paste a list of tasks"
+              description="One task per line. We'll match each task to its best-fit skills so you can see coverage across an entire plan."
+            />
+          )}
+
+          {!loading && multiSubmitted && multiResults.length === 0 && !error && (
+            <EmptyState
+              icon={SearchX}
+              title="No matching skills found"
+              description="None of those tasks produced a strong match. Try splitting them into smaller, more concrete steps."
+            />
           )}
         </TabsContent>
       </Tabs>
