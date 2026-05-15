@@ -87,8 +87,8 @@ function fieldMatchStrength(qt: string, qtNext: string | undefined, fieldTokens:
 }
 
 // SOL-990 AI-2: Per-(field, match-type) weights. Calibrated so:
-//   - 1 name phrase (8) beats >15 description-exact tokens (>=8 needed → ≥16 desc tokens)
-//   - name exact (4) beats 8 description-exact (=8). Slight desc accumulation OK at exactness.
+//   - 1 name phrase (8) strictly beats up to 15 desc-exact tokens (ties at 16, loses at ≥17)
+//   - 1 name exact (4) strictly beats up to 7 desc-exact tokens (ties at 8, loses at ≥9)
 //   - description phrase (3) still meaningful — close phrases in long descriptions count
 //   - description prefix (0.25) heavily damped — protects against 5-15 token noise floor
 // All weights are deterministic constants; no per-query tuning. AI-5 keeps the
@@ -132,9 +132,15 @@ export function stripSourceAttribution(text: string): string {
   if (!text) return text;
   // Pattern 1: trailing "From {owner}/{repo}." or "From {owner}/{repo}"
   // Pattern 2: trailing "From {owner}." or "From {owner}"
+  //
+  // R6 review hardening: both patterns require capital `From` (case-sensitive)
+  // AND a sentence-start anchor `(^|\.\s*)` so legitimate prose ending in
+  // lowercase "from {word}." (e.g. "Inherited from upstream.", "Different from
+  // competitors.") is not false-stripped. The captured prefix `$1` is re-injected
+  // so the preceding sentence's period is preserved.
   return text
-    .replace(/\s*From\s+[\w\-]+\/[\w\-]+\.?\s*$/i, "")
-    .replace(/\s*From\s+[\w\-]+\.?\s*$/i, "")
+    .replace(/(^|\.\s*)From\s+[\w\-]+\/[\w\-]+\.?\s*$/, "$1")
+    .replace(/(^|\.\s*)From\s+[\w\-]+\.?\s*$/, "$1")
     .trim();
 }
 

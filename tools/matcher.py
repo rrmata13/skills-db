@@ -167,8 +167,12 @@ def _score_from_strength(strength: int, phrase: float, exact: float, prefix: flo
     return 0.0
 
 
-_SOURCE_ATTR_RE_REPO = re.compile(r"\s*From\s+[\w\-]+/[\w\-]+\.?\s*$", re.IGNORECASE)
-_SOURCE_ATTR_RE_OWNER = re.compile(r"\s*From\s+[\w\-]+\.?\s*$", re.IGNORECASE)
+# R6 review hardening: require capital `From` (no re.IGNORECASE) AND a
+# sentence-start anchor `(^|\.\s*)` so legitimate prose ending in lowercase
+# "from {word}." is not false-stripped. re.ASCII forces `\w` to match
+# [A-Za-z0-9_] only, mirroring JS regex `\w` semantics — parity contract.
+_SOURCE_ATTR_RE_REPO = re.compile(r"(^|\.\s*)From\s+[\w\-]+/[\w\-]+\.?\s*$", re.ASCII)
+_SOURCE_ATTR_RE_OWNER = re.compile(r"(^|\.\s*)From\s+[\w\-]+\.?\s*$", re.ASCII)
 
 
 def strip_source_attribution(text: str) -> str:
@@ -176,12 +180,13 @@ def strip_source_attribution(text: str) -> str:
 
     Removes trailing "From owner/repo." or "From owner." attribution text added
     by SOL-852's inferred-description fetcher. Eliminates repo-name bleed into
-    lexical scoring per Codex R5 Q4.
+    lexical scoring per Codex R5 Q4. The captured prefix is re-injected via
+    backreference so the preceding sentence's period is preserved.
     """
     if not text:
         return text
-    cleaned = _SOURCE_ATTR_RE_REPO.sub("", text)
-    cleaned = _SOURCE_ATTR_RE_OWNER.sub("", cleaned)
+    cleaned = _SOURCE_ATTR_RE_REPO.sub(r"\1", text)
+    cleaned = _SOURCE_ATTR_RE_OWNER.sub(r"\1", cleaned)
     return cleaned.strip()
 
 
