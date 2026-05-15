@@ -349,8 +349,7 @@ def compute_category_score(query: str, skill: Mapping) -> float:
             hit = False
             for tag in skill_tags:
                 # Split tag on non-alphanumeric to get tokens
-                import re as _re
-                tag_tokens = [t for t in _re.split(r'[^a-z0-9]+', tag) if len(t) > 1]
+                tag_tokens = [t for t in re.split(r'[^a-z0-9]+', tag) if len(t) > 1]
                 for tt in tag_tokens:
                     if tt == kw_lower or (len(tt) >= 4 and (tt.startswith(kw_lower) or kw_lower.startswith(tt))):
                         hit = True
