@@ -116,13 +116,35 @@ function scoreFromStrength(strength: MatchStrength, phrase: number, exact: numbe
   return 0;
 }
 
+// SOL-990 AI-4 — Per Codex R5 verdict (SOL-987) Q4:
+//   "First remove source repo/name from lexical scoring unless it is explicitly
+//    modeled as metadata."
+//
+// Source: SOL-852's inferred-description fetcher appended "From {owner/repo}."
+// to slugs without real descriptions. Result: the repo token (e.g., `agents` from
+// `wshobson/agents`) bleeds into description tokenization and fires categories
+// via the safe-prefix path (e.g., `agents` prefix-matches `agent` keyword →
+// multi-agent fires on `architecture-patterns`).
+//
+// Strip the attribution AT SCORING TIME so no DB migration is needed. The
+// original description text is preserved in storage for display/audit purposes.
+export function stripSourceAttribution(text: string): string {
+  if (!text) return text;
+  // Pattern 1: trailing "From {owner}/{repo}." or "From {owner}/{repo}"
+  // Pattern 2: trailing "From {owner}." or "From {owner}"
+  return text
+    .replace(/\s*From\s+[\w\-]+\/[\w\-]+\.?\s*$/i, "")
+    .replace(/\s*From\s+[\w\-]+\.?\s*$/i, "")
+    .trim();
+}
+
 export function computeLexicalScore(query: string, skill: SkillRecord): number {
   const queryTokens = tokenize(query);
   if (queryTokens.length === 0) return 0;
 
   // Build weighted skill text
   const nameTokens = tokenize(skill.name);
-  const descTokens = tokenize(skill.description);
+  const descTokens = tokenize(stripSourceAttribution(skill.description)); // AI-4
   const tagTokens = skill.tags.flatMap((t) => tokenize(t.tag));
   const capTokens = skill.capabilities.flatMap((c) => tokenize(c.capability));
 
@@ -164,24 +186,126 @@ function computeSemanticScore(
   return vectorizer.cosineSimilarity(queryVector, skillVector);
 }
 
+// SOL-990 AI-3 — Per Codex R5 verdict (SOL-987) Q3:
+//   "Add a deterministic query-to-category classifier using broader phrase rules
+//    and curated domain synonyms, then optionally back it with embeddings later."
+//
+// Replaces the inline `keywords.some((kw) => queryLower.includes(kw))` substring
+// match at scoring.ts:96-117 with `detectQueryCategories()`. Key rules:
+//   - Minimum keyword length ≥ 4 to participate via prefix/stem path
+//   - Keywords < 4 chars (ci, cd, ai, bot, etc.) match ONLY via exact token equality
+//     — no substring games. Eliminates the SOL-986 false-positive `ci` matching
+//     `speCIfication`, `tool` matching generic "AI tool", `bot` matching "robotic",
+//     `cd` matching "academic".
+//   - Optional CATEGORY_SYNONYMS adds bigram phrase rules — e.g., "unit test" →
+//     coding even though neither token alone strongly signals coding.
+//
+// NO LLM call (per Codex R5 — "smallest revision is not full embeddings everywhere").
+// NO substring on short fragments (per Codex R5 Q1).
+
+// Starter synonym bigrams. Founder expands in SOL-989 (taxonomy expansion).
+// Each entry: [token1, token2] — must appear adjacent in query (ordered) to fire.
+const CATEGORY_SYNONYMS: Record<string, string[][]> = {
+  coding: [["unit", "test"], ["code", "review"], ["bug", "fix"], ["pull", "request"], ["lint", "format"]],
+  "workflow-automation": [["github", "actions"], ["zapier", "make"], ["cron", "job"]],
+  chatbot: [["customer", "support"], ["slack", "thread"]],
+  memory: [["short", "term"], ["long", "term"], ["working", "memory"]],
+  devops: [["ci", "cd"], ["docker", "compose"], ["kubernetes", "cluster"], ["github", "actions"]],
+  documentation: [["api", "docs"], ["read", "me"], ["release", "notes"]],
+  "knowledge-management": [["second", "brain"], ["personal", "knowledge"], ["zettel", "kasten"]],
+  "cloud-platform": [["aws", "lambda"], ["cloudflare", "workers"], ["serverless", "function"]],
+  "cli-tooling": [["command", "line"], ["shell", "script"]],
+  "multi-agent": [["multi", "agent"], ["agent", "swarm"], ["agent", "coordination"]],
+  "skills-collection": [["awesome", "list"], ["curated", "list"]],
+  integration: [["webhook", "url"], ["api", "client"], ["third", "party"]],
+};
+
+export function detectQueryCategories(query: string): string[] {
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return [];
+
+  const fired = new Set<string>();
+
+  // Path 1: single-keyword matches with length discipline.
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    for (const kw of keywords) {
+      const kwLower = kw.toLowerCase();
+      if (kwLower.length < 4) {
+        // Short keywords must match exactly (no substring/prefix games).
+        if (queryTokens.includes(kwLower)) {
+          fired.add(category);
+          break;
+        }
+        continue;
+      }
+      // Long keywords: exact OR safe prefix (both tokens length ≥ 4).
+      let matched = false;
+      for (const qt of queryTokens) {
+        if (qt === kwLower) { matched = true; break; }
+        if (qt.length >= 4 && (qt.startsWith(kwLower) || kwLower.startsWith(qt))) {
+          matched = true; break;
+        }
+      }
+      if (matched) {
+        fired.add(category);
+        break;
+      }
+    }
+  }
+
+  // Path 2: bigram phrase synonyms (ordered, adjacent in query).
+  for (const [category, phrases] of Object.entries(CATEGORY_SYNONYMS)) {
+    for (const phrase of phrases) {
+      if (phrase.length !== 2) continue; // bigram-only for now; SOL-989 may extend
+      const [w1, w2] = phrase.map((w) => w.toLowerCase());
+      for (let i = 0; i + 1 < queryTokens.length; i++) {
+        if (queryTokens[i] === w1 && queryTokens[i + 1] === w2) {
+          fired.add(category);
+          break;
+        }
+      }
+      if (fired.has(category)) break;
+    }
+  }
+
+  return Array.from(fired);
+}
+
 export function computeCategoryScore(query: string, skill: SkillRecord): number {
-  const queryLower = query.toLowerCase();
-  const skillCategories = skill.categories.map((c) => c.category);
+  const queryCategories = detectQueryCategories(query);
+  if (queryCategories.length === 0) return 0;
+
+  const skillCategorySet = new Set(skill.categories.map((c) => c.category));
+  const skillTagsLower = skill.tags.map((t) => t.tag.toLowerCase());
 
   let maxScore = 0;
-
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    const queryMatch = keywords.some((kw) => queryLower.includes(kw));
-    if (queryMatch && skillCategories.includes(category)) {
+  for (const category of queryCategories) {
+    if (skillCategorySet.has(category)) {
       maxScore = Math.max(maxScore, 1.0);
-    } else if (queryMatch) {
-      // Check tag overlap
-      const skillTags = skill.tags.map((t) => t.tag.toLowerCase());
-      const tagOverlap = keywords.filter((kw) =>
-        skillTags.some((st) => st.includes(kw))
-      ).length;
-      maxScore = Math.max(maxScore, Math.min(1, tagOverlap * 0.3));
+      continue;
     }
+    // Tag-overlap fallback — same length discipline as detectQueryCategories.
+    // Count category keywords (len ≥ 4) that appear in skill tags via exact or
+    // safe-prefix match (no substring on short fragments).
+    const keywords = CATEGORY_KEYWORDS[category] ?? [];
+    let tagOverlap = 0;
+    for (const kw of keywords) {
+      if (kw.length < 4) continue; // short kws don't participate in tag fallback
+      const kwLower = kw.toLowerCase();
+      let hit = false;
+      for (const tag of skillTagsLower) {
+        const tagTokens = tag.split(/[^a-z0-9]+/).filter((t) => t.length > 1);
+        for (const tt of tagTokens) {
+          if (tt === kwLower || (tt.length >= 4 && (tt.startsWith(kwLower) || kwLower.startsWith(tt)))) {
+            hit = true;
+            break;
+          }
+        }
+        if (hit) break;
+      }
+      if (hit) tagOverlap++;
+    }
+    maxScore = Math.max(maxScore, Math.min(1, tagOverlap * 0.3));
   }
 
   return maxScore;

@@ -167,12 +167,30 @@ def _score_from_strength(strength: int, phrase: float, exact: float, prefix: flo
     return 0.0
 
 
+_SOURCE_ATTR_RE_REPO = re.compile(r"\s*From\s+[\w\-]+/[\w\-]+\.?\s*$", re.IGNORECASE)
+_SOURCE_ATTR_RE_OWNER = re.compile(r"\s*From\s+[\w\-]+\.?\s*$", re.IGNORECASE)
+
+
+def strip_source_attribution(text: str) -> str:
+    """SOL-990 AI-4 — Python mirror of stripSourceAttribution in scoring.ts.
+
+    Removes trailing "From owner/repo." or "From owner." attribution text added
+    by SOL-852's inferred-description fetcher. Eliminates repo-name bleed into
+    lexical scoring per Codex R5 Q4.
+    """
+    if not text:
+        return text
+    cleaned = _SOURCE_ATTR_RE_REPO.sub("", text)
+    cleaned = _SOURCE_ATTR_RE_OWNER.sub("", cleaned)
+    return cleaned.strip()
+
+
 def compute_lexical_score(query: str, skill: Mapping) -> float:
     q_tokens = tokenize(query)
     if not q_tokens:
         return 0.0
     name_tokens = tokenize(_name_of(skill))
-    desc_tokens = tokenize(_description_of(skill))
+    desc_tokens = tokenize(strip_source_attribution(_description_of(skill)))  # AI-4
     tag_tokens: list[str] = []
     for t in _tag_strings(skill):
         tag_tokens.extend(tokenize(t))
@@ -228,20 +246,116 @@ def compute_exact_match_boost(query: str, skill: Mapping) -> float:
 # Category (production-equivalent: max with tag-overlap fallback).
 # ---------------------------------------------------------------------------
 
-def compute_category_score(query: str, skill: Mapping) -> float:
-    q = (query or "").lower()
-    skill_categories = set(_category_strings(skill))
-    skill_tags = [t.lower() for t in _tag_strings(skill)]
-    max_score = 0.0
+# SOL-990 AI-3 — Python mirror of detectQueryCategories + computeCategoryScore.
+# Replaces the inline ``kw in q`` substring match with length-disciplined keyword
+# matching + bigram phrase synonyms. Keywords < 4 chars must match exactly; long
+# keywords accept exact + safe-prefix (both tokens length ≥ 4).
+#
+# Starter synonym bigrams (DO NOT EDIT independently of scoring.ts — these must
+# stay in sync for parity). Founder expands in SOL-989.
+CATEGORY_SYNONYMS: Mapping[str, Sequence[Sequence[str]]] = {
+    "coding": [["unit", "test"], ["code", "review"], ["bug", "fix"], ["pull", "request"], ["lint", "format"]],
+    "workflow-automation": [["github", "actions"], ["zapier", "make"], ["cron", "job"]],
+    "chatbot": [["customer", "support"], ["slack", "thread"]],
+    "memory": [["short", "term"], ["long", "term"], ["working", "memory"]],
+    "devops": [["ci", "cd"], ["docker", "compose"], ["kubernetes", "cluster"], ["github", "actions"]],
+    "documentation": [["api", "docs"], ["read", "me"], ["release", "notes"]],
+    "knowledge-management": [["second", "brain"], ["personal", "knowledge"], ["zettel", "kasten"]],
+    "cloud-platform": [["aws", "lambda"], ["cloudflare", "workers"], ["serverless", "function"]],
+    "cli-tooling": [["command", "line"], ["shell", "script"]],
+    "multi-agent": [["multi", "agent"], ["agent", "swarm"], ["agent", "coordination"]],
+    "skills-collection": [["awesome", "list"], ["curated", "list"]],
+    "integration": [["webhook", "url"], ["api", "client"], ["third", "party"]],
+}
+
+
+def detect_query_categories(query: str) -> list[str]:
+    """SOL-990 AI-3 — Python mirror of detectQueryCategories.
+
+    Returns the list of categories the query activates via:
+      1. Single-keyword match with length discipline (short kws exact-only).
+      2. Bigram phrase synonyms (ordered, adjacent in query).
+    """
+    q_tokens = tokenize(query)
+    if not q_tokens:
+        return []
+
+    fired: set[str] = set()
+
+    # Path 1: single-keyword matches with length discipline.
     for category, keywords in CATEGORY_KEYWORDS.items():
-        query_match = any(kw in q for kw in keywords)
-        if not query_match:
-            continue
-        if category in skill_categories:
+        for kw in keywords:
+            kw_lower = kw.lower()
+            if len(kw_lower) < 4:
+                # Short keywords must match exactly.
+                if kw_lower in q_tokens:
+                    fired.add(category)
+                    break
+                continue
+            # Long keywords: exact OR safe prefix.
+            matched = False
+            for qt in q_tokens:
+                if qt == kw_lower:
+                    matched = True
+                    break
+                if len(qt) >= 4 and (qt.startswith(kw_lower) or kw_lower.startswith(qt)):
+                    matched = True
+                    break
+            if matched:
+                fired.add(category)
+                break
+
+    # Path 2: bigram phrase synonyms.
+    for category, phrases in CATEGORY_SYNONYMS.items():
+        for phrase in phrases:
+            if len(phrase) != 2:
+                continue
+            w1, w2 = phrase[0].lower(), phrase[1].lower()
+            for i in range(len(q_tokens) - 1):
+                if q_tokens[i] == w1 and q_tokens[i + 1] == w2:
+                    fired.add(category)
+                    break
+            if category in fired:
+                break
+
+    return sorted(fired)  # deterministic order for parity
+
+
+def compute_category_score(query: str, skill: Mapping) -> float:
+    query_categories = detect_query_categories(query)
+    if not query_categories:
+        return 0.0
+
+    skill_category_set = set(_category_strings(skill))
+    skill_tags = [t.lower() for t in _tag_strings(skill)]
+
+    max_score = 0.0
+    for category in query_categories:
+        if category in skill_category_set:
             max_score = max(max_score, 1.0)
-        else:
-            tag_overlap = sum(1 for kw in keywords if any(kw in st for st in skill_tags))
-            max_score = max(max_score, min(1.0, tag_overlap * 0.3))
+            continue
+        # Tag-overlap fallback — same length discipline.
+        keywords = CATEGORY_KEYWORDS.get(category, [])
+        tag_overlap = 0
+        for kw in keywords:
+            if len(kw) < 4:
+                continue  # short kws don't participate in tag fallback
+            kw_lower = kw.lower()
+            hit = False
+            for tag in skill_tags:
+                # Split tag on non-alphanumeric to get tokens
+                import re as _re
+                tag_tokens = [t for t in _re.split(r'[^a-z0-9]+', tag) if len(t) > 1]
+                for tt in tag_tokens:
+                    if tt == kw_lower or (len(tt) >= 4 and (tt.startswith(kw_lower) or kw_lower.startswith(tt))):
+                        hit = True
+                        break
+                if hit:
+                    break
+            if hit:
+                tag_overlap += 1
+        max_score = max(max_score, min(1.0, tag_overlap * 0.3))
+
     return max_score
 
 
