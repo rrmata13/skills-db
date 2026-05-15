@@ -110,30 +110,61 @@ def _category_strings(skill: Mapping) -> list[str]:
 # Lexical (production-equivalent: cap at 1.0, divisor totalWeight * 0.3).
 # ---------------------------------------------------------------------------
 
-def _field_matches(qt: str, qt_next: str | None, field_tokens: Sequence[str]) -> bool:
-    """SOL-990 AI-1 — Python mirror of fieldMatches in scoring.ts.
+def _field_match_strength(qt: str, qt_next: str | None, field_tokens: Sequence[str]) -> int:
+    """SOL-990 AI-1 + AI-2 — Python mirror of fieldMatchStrength in scoring.ts.
 
-    Replaces the previous ``qt in ft or ft in qt`` bidirectional substring rule
-    with three deterministic alternatives:
-        1. Exact token equality (post-tokenize, stop-words already stripped).
-        2. Ordered phrase/bigram overlap: (qt, qt_next) adjacent in field_tokens.
-        3. Safe prefix/stem: ``startswith`` only when BOTH tokens are length ≥ 4
-           (per Codex R5 — never for stop-word fragments or short noise).
+    Returns numeric match strength so the caller can weight per-(field, type)
+    per Codex R5 Q2 (name/slug phrase > scattered description).
+
+    Strength values:
+        3 = ordered phrase/bigram (qt, qt_next adjacent in field_tokens)
+        2 = exact token equality
+        1 = safe prefix/stem — only when BOTH tokens length >= 4
+        0 = no match
+
+    Replaces the previous ``qt in ft or ft in qt`` bidirectional substring rule.
     """
-    # 1. Exact token overlap
-    if qt in field_tokens:
-        return True
-    # 2. Ordered phrase/bigram overlap
+    # 3 = ordered phrase/bigram (strongest)
     if qt_next is not None:
         for j in range(len(field_tokens) - 1):
             if field_tokens[j] == qt and field_tokens[j + 1] == qt_next:
-                return True
-    # 3. Safe prefix/stem (length >= 4 on both sides)
+                return 3
+    # 2 = exact token equality
+    if qt in field_tokens:
+        return 2
+    # 1 = safe prefix/stem (length >= 4 on both sides)
     if len(qt) >= 4:
         for ft in field_tokens:
             if len(ft) >= 4 and (ft.startswith(qt) or qt.startswith(ft)):
-                return True
-    return False
+                return 1
+    return 0
+
+
+# SOL-990 AI-2: Per-(field, match-type) weights. Mirror of scoring.ts constants.
+# DO NOT EDIT independently of scoring.ts — these must stay in sync for parity.
+_NAME_PHRASE = 8
+_NAME_EXACT = 4
+_NAME_PREFIX = 2
+_TAG_PHRASE = 4
+_TAG_EXACT = 2
+_TAG_PREFIX = 1
+_CAP_PHRASE = 3
+_CAP_EXACT = 1.5
+_CAP_PREFIX = 0.5
+_DESC_PHRASE = 3
+_DESC_EXACT = 0.5
+_DESC_PREFIX = 0.25
+_MAX_PER_TOKEN = _NAME_PHRASE + _DESC_PHRASE + _TAG_PHRASE + _CAP_PHRASE  # 18
+
+
+def _score_from_strength(strength: int, phrase: float, exact: float, prefix: float) -> float:
+    if strength == 3:
+        return phrase
+    if strength == 2:
+        return exact
+    if strength == 1:
+        return prefix
+    return 0.0
 
 
 def compute_lexical_score(query: str, skill: Mapping) -> float:
@@ -154,15 +185,22 @@ def compute_lexical_score(query: str, skill: Mapping) -> float:
     for i, qt in enumerate(q_tokens):
         qt_next = q_tokens[i + 1] if i + 1 < len(q_tokens) else None
 
-        if _field_matches(qt, qt_next, name_tokens):
-            score += 3
-        if _field_matches(qt, qt_next, desc_tokens):
-            score += 2
-        if _field_matches(qt, qt_next, tag_tokens):
-            score += 2
-        if _field_matches(qt, qt_next, cap_tokens):
-            score += 1.5
-        total_weight += 3 + 2 + 2 + 1.5
+        score += _score_from_strength(
+            _field_match_strength(qt, qt_next, name_tokens), _NAME_PHRASE, _NAME_EXACT, _NAME_PREFIX
+        )
+        score += _score_from_strength(
+            _field_match_strength(qt, qt_next, desc_tokens), _DESC_PHRASE, _DESC_EXACT, _DESC_PREFIX
+        )
+        score += _score_from_strength(
+            _field_match_strength(qt, qt_next, tag_tokens), _TAG_PHRASE, _TAG_EXACT, _TAG_PREFIX
+        )
+        score += _score_from_strength(
+            _field_match_strength(qt, qt_next, cap_tokens), _CAP_PHRASE, _CAP_EXACT, _CAP_PREFIX
+        )
+        total_weight += _MAX_PER_TOKEN
+
+    # Cap divisor 0.3 preserved from pre-AI-2 (Codex R5: "do not lower the ship
+    # gate; fix scoring calibration"). The recalibration is in per-field weights.
     return min(1.0, score / (total_weight * 0.3))
 
 

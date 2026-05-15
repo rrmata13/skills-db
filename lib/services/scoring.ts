@@ -55,30 +55,65 @@ async function getAllSkills(): Promise<SkillRecord[]> {
 //   behavior ONLY when both tokens are length ≥ 4 (never for stop-word fragments
 //   or short noise like `ci`/`cd`/`ai`).
 //
-// Old primitive false-positives observed in SOL-986:
-//   - `ci` in `speCIfication` (devops false-match)
-//   - `tool` in "AI tool" (cli-tooling false-match for non-CLI skills)
-//   - `review` in feedback analysis (coding false-match for non-code review)
-// New primitive eliminates these by requiring either exact token equality,
-// ordered phrase coincidence, or a safe-length prefix relationship.
-function fieldMatches(qt: string, qtNext: string | undefined, fieldTokens: string[]): boolean {
-  // 1. Exact token overlap (post-tokenize, stop-words already stripped).
-  if (fieldTokens.includes(qt)) return true;
-  // 2. Ordered phrase/bigram overlap: (qt, qtNext) adjacent in field tokens.
+// SOL-990 AI-2 — Split lexical fields (Codex R5 Q2): a close slug/name phrase
+//   should beat many weak description coincidences. Returns numeric match
+//   strength so the caller can weight per-(field, match-type), addressing the
+//   "5-15 token noise row accumulates lexical floor" problem.
+
+type MatchStrength = 0 | 1 | 2 | 3;
+// 0 = no match
+// 1 = safe prefix/stem (both tokens length ≥ 4)
+// 2 = exact token equality
+// 3 = ordered phrase/bigram (strongest)
+
+function fieldMatchStrength(qt: string, qtNext: string | undefined, fieldTokens: string[]): MatchStrength {
+  // 3 = ordered phrase/bigram (strongest signal — adjacent in same order)
   if (qtNext !== undefined) {
     for (let j = 0; j + 1 < fieldTokens.length; j++) {
-      if (fieldTokens[j] === qt && fieldTokens[j + 1] === qtNext) return true;
+      if (fieldTokens[j] === qt && fieldTokens[j + 1] === qtNext) return 3;
     }
   }
-  // 3. Safe prefix/stem — only when BOTH tokens are length ≥ 4 (Codex R5).
+  // 2 = exact token equality
+  if (fieldTokens.includes(qt)) return 2;
+  // 1 = safe prefix/stem — only when BOTH tokens length ≥ 4 (Codex R5)
   if (qt.length >= 4) {
     for (const ft of fieldTokens) {
       if (ft.length >= 4 && (ft.startsWith(qt) || qt.startsWith(ft))) {
-        return true;
+        return 1;
       }
     }
   }
-  return false;
+  return 0;
+}
+
+// SOL-990 AI-2: Per-(field, match-type) weights. Calibrated so:
+//   - 1 name phrase (8) beats >15 description-exact tokens (>=8 needed → ≥16 desc tokens)
+//   - name exact (4) beats 8 description-exact (=8). Slight desc accumulation OK at exactness.
+//   - description phrase (3) still meaningful — close phrases in long descriptions count
+//   - description prefix (0.25) heavily damped — protects against 5-15 token noise floor
+// All weights are deterministic constants; no per-query tuning. AI-5 keeps the
+// production weight stack `SCORING_WEIGHTS_NO_SEMANTIC` frozen — these are
+// INTRA-lexical sub-weights, not the top-level lexical/semantic/category mix.
+const NAME_PHRASE = 8;
+const NAME_EXACT = 4;
+const NAME_PREFIX = 2;
+const TAG_PHRASE = 4;
+const TAG_EXACT = 2;
+const TAG_PREFIX = 1;
+const CAP_PHRASE = 3;
+const CAP_EXACT = 1.5;
+const CAP_PREFIX = 0.5;
+const DESC_PHRASE = 3;
+const DESC_EXACT = 0.5;
+const DESC_PREFIX = 0.25;
+// Max possible per-token contribution = all fields hitting at phrase strength.
+const MAX_PER_TOKEN = NAME_PHRASE + DESC_PHRASE + TAG_PHRASE + CAP_PHRASE; // 18
+
+function scoreFromStrength(strength: MatchStrength, phrase: number, exact: number, prefix: number): number {
+  if (strength === 3) return phrase;
+  if (strength === 2) return exact;
+  if (strength === 1) return prefix;
+  return 0;
 }
 
 export function computeLexicalScore(query: string, skill: SkillRecord): number {
@@ -98,25 +133,26 @@ export function computeLexicalScore(query: string, skill: SkillRecord): number {
     const qt = queryTokens[i];
     const qtNext = i + 1 < queryTokens.length ? queryTokens[i + 1] : undefined;
 
-    // Name match (highest weight)
-    if (fieldMatches(qt, qtNext, nameTokens)) {
-      matchScore += 3;
-    }
-    // Description match
-    if (fieldMatches(qt, qtNext, descTokens)) {
-      matchScore += 2;
-    }
-    // Tag match
-    if (fieldMatches(qt, qtNext, tagTokens)) {
-      matchScore += 2;
-    }
-    // Capability match
-    if (fieldMatches(qt, qtNext, capTokens)) {
-      matchScore += 1.5;
-    }
-    totalWeight += 3 + 2 + 2 + 1.5;
+    matchScore += scoreFromStrength(
+      fieldMatchStrength(qt, qtNext, nameTokens), NAME_PHRASE, NAME_EXACT, NAME_PREFIX
+    );
+    matchScore += scoreFromStrength(
+      fieldMatchStrength(qt, qtNext, descTokens), DESC_PHRASE, DESC_EXACT, DESC_PREFIX
+    );
+    matchScore += scoreFromStrength(
+      fieldMatchStrength(qt, qtNext, tagTokens), TAG_PHRASE, TAG_EXACT, TAG_PREFIX
+    );
+    matchScore += scoreFromStrength(
+      fieldMatchStrength(qt, qtNext, capTokens), CAP_PHRASE, CAP_EXACT, CAP_PREFIX
+    );
+    totalWeight += MAX_PER_TOKEN;
   }
 
+  // Cap divisor multiplier (0.3) preserved from pre-AI-2 — Codex R5 flagged this
+  // as heuristic but said "do not lower the ship gate; fix scoring calibration."
+  // The recalibration is the per-field weights above; the 0.3 stays so absolute
+  // score magnitudes remain in the same ballpark as pre-AI-2 (single strong name
+  // match still saturates near 1.0).
   return Math.min(1, matchScore / (totalWeight * 0.3));
 }
 
