@@ -1,4 +1,5 @@
 import { uninstallSkillWithPersistence } from "@/lib/services/skill-curation";
+import { logSkillUse } from "@/lib/services/dogfood-logger";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -13,6 +14,16 @@ export async function POST(
       const status = result.error.kind === "not_found" ? 404 : 400;
       return NextResponse.json({ data: null, error: result.error }, { status });
     }
+
+    // SOL-1018 dogfood: log uninstall as a "negative" click-through signal.
+    // Uninstall events are useful for measuring whether the matcher recommended
+    // a skill the user later regretted.
+    await logSkillUse({
+      skillId: id,
+      useType: "uninstall",
+      userQueryId: null,
+      rank: null,
+    });
 
     return NextResponse.json({
       data: {

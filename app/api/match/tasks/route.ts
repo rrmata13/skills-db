@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
       .map((q) => q.trim())
       .filter((q) => q.length > 0);
 
-    const { results, queryType } = await matchMultipleTasks(
+    const { results, queryType, dogfoodQueryId } = await matchMultipleTasks(
       validQueries,
       filters,
       limit
     );
 
     return NextResponse.json({
-      data: { results },
+      data: { results, dogfoodQueryId },
       error: null,
       meta: { queryType, total: results.length },
     });

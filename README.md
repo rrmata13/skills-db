@@ -150,13 +150,91 @@ OPENAI_API_KEY="sk-..."             # Required if EMBEDDING_PROVIDER="openai"
 ## Scripts
 
 ```bash
-npm run dev         # Start dev server
-npm run build       # Production build
-npm test            # Run tests
-npm run db:migrate  # Run Prisma migrations
-npm run db:seed     # Seed database
-npm run db:reset    # Reset database
+npm run dev              # Start dev server
+npm run build            # Production build
+npm test                 # Run tests
+npm run db:migrate       # Run Prisma migrations
+npm run db:seed          # Seed database
+npm run db:reset         # Reset database
+npm run dogfood:report   # Local query + click-through analysis (see Dogfood mode below)
 ```
+
+## Dogfood mode
+
+SkillMapper logs every match query and click-through to the local SQLite DB so
+you can analyze matcher quality from real usage rather than synthetic gold sets.
+Logging is **on by default**, **local-only**, and **per-user**. No data leaves
+your machine.
+
+### What gets logged
+
+| Table | Captures |
+|---|---|
+| `UserQuery` | timestamp, raw input, query type (single/multi/plan), scorer version SHA |
+| `QueryTask` | per-task text (multi-task and plan queries split into tasks) |
+| `QueryMatch` | top-N results per task: rank, score, lexical/semantic/category sub-scores |
+| `SkillUse` | every install / uninstall click-through, with rank attribution back to the originating query when available |
+
+No PII; no query content is ever transmitted off-device. The DB file is
+`prisma/dev.db` (SQLite), gitignored, and lives in your project directory.
+
+### Running the report
+
+```bash
+npm run dogfood:report
+```
+
+Produces markdown with:
+
+- **Query volume** -- total queries + breakdown by type
+- **CTR per rank** -- click-through rate at each top-N position (signals whether matcher ordering carries useful information)
+- **Zero-result queries** -- queries that returned nothing (corpus-gap or vocabulary-gap signal; useful input for Sprint 3c semantic embeddings)
+- **Top installed slugs** -- which match results you actually used
+- **Most-uninstalled slugs** -- regret signal: matches you installed and then removed
+
+Archive snapshots over time:
+
+```bash
+mkdir -p Skills/dogfood-snapshots
+npm run dogfood:report > Skills/dogfood-snapshots/$(date +%Y-%m-%d).md
+```
+
+### Disabling
+
+Set `DOGFOOD_LOG_DISABLED=1` in `.env.local` and restart the dev server:
+
+```bash
+echo 'DOGFOOD_LOG_DISABLED=1' >> .env.local
+npm run dev
+```
+
+No new rows will be written; existing data is preserved.
+
+### Resetting
+
+```sql
+-- via sqlite3 prisma/dev.db
+DELETE FROM SkillUse;
+DELETE FROM QueryMatch;
+DELETE FROM QueryTask;
+DELETE FROM UserQuery;
+```
+
+Or nuke the whole DB:
+
+```bash
+npm run db:reset
+```
+
+### Why this exists
+
+Gold-set evaluation (Card 033 + SafeCollect) gives synthetic but bounded signal.
+Real founder/beta-user queries give unbounded but unstructured signal. Both are
+needed. Dogfood mode is the unstructured side: it captures actual query
+distribution and click behavior so the next matcher iteration can be calibrated
+against ground truth.
+
+See `Skills/skill-match-SOL-1018/` for the design history (SOL-1018 Linear ticket).
 
 ## Design Decisions
 

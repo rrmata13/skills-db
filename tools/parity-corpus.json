@@ -25643,6 +25643,38 @@
         "query_id": "card033-02",
         "top10": [
           {
+            "slug": "cq-csv-summarizer",
+            "lexical": 0.154320987654321,
+            "category": 0.3,
+            "popularity": 0.7398023219560924,
+            "exactMatch": 0,
+            "total": 0.24865282184460763
+          },
+          {
+            "slug": "obsidian-dataview-skills",
+            "lexical": 0.14660493827160495,
+            "category": 0.3,
+            "popularity": 0.6818965920928747,
+            "exactMatch": 0,
+            "total": 0.23746030710052768
+          },
+          {
+            "slug": "cq-gsheets-auto",
+            "lexical": 0.0617283950617284,
+            "category": 0.3,
+            "popularity": 0.711692307934565,
+            "exactMatch": 0,
+            "total": 0.19435369423609838
+          },
+          {
+            "slug": "cq-d3-viz",
+            "lexical": 0.0462962962962963,
+            "category": 0.3,
+            "popularity": 0.7509583829711157,
+            "exactMatch": 0,
+            "total": 0.19057796891949685
+          },
+          {
             "slug": "synth-114",
             "lexical": 0.1234567901234568,
             "category": 0,
@@ -25651,20 +25683,12 @@
             "total": 0.1877779497745836
           },
           {
-            "slug": "cq-csv-summarizer",
-            "lexical": 0.154320987654321,
-            "category": 0,
-            "popularity": 0.7398023219560924,
+            "slug": "cq-file-deletion",
+            "lexical": 0.0462962962962963,
+            "category": 0.3,
+            "popularity": 0.669020120235193,
             "exactMatch": 0,
-            "total": 0.17365282184460765
-          },
-          {
-            "slug": "obsidian-dataview-skills",
-            "lexical": 0.14660493827160495,
-            "category": 0,
-            "popularity": 0.6818965920928747,
-            "exactMatch": 0,
-            "total": 0.16246030710052767
+            "total": 0.18074537739118612
           },
           {
             "slug": "synth-497",
@@ -25697,30 +25721,6 @@
             "popularity": 0.9145430489444443,
             "exactMatch": 0,
             "total": 0.14369578315728393
-          },
-          {
-            "slug": "synth-494",
-            "lexical": 0.1388888888888889,
-            "category": 0,
-            "popularity": 0.5231947590350776,
-            "exactMatch": 0,
-            "total": 0.1391722599730982
-          },
-          {
-            "slug": "synth-197",
-            "lexical": 0.0617283950617284,
-            "category": 0,
-            "popularity": 0.7481440170949695,
-            "exactMatch": 0,
-            "total": 0.12372789933534695
-          },
-          {
-            "slug": "synth-225",
-            "lexical": 0.0617283950617284,
-            "category": 0,
-            "popularity": 0.7470896837441852,
-            "exactMatch": 0,
-            "total": 0.12360137933325283
           }
         ]
       },
@@ -26408,12 +26408,44 @@
         "query_id": "card033-11",
         "top10": [
           {
+            "slug": "cq-mixpanel",
+            "lexical": 0,
+            "category": 0.6,
+            "popularity": 0.669020120235193,
+            "exactMatch": 0,
+            "total": 0.23028241442822314
+          },
+          {
             "slug": "cq-dev-growth",
             "lexical": 0.19841269841269843,
             "category": 0,
             "popularity": 0.711692307934565,
             "exactMatch": 0,
             "total": 0.19453006107913193
+          },
+          {
+            "slug": "cq-linear",
+            "lexical": 0.033068783068783074,
+            "category": 0.3,
+            "popularity": 0.711692307934565,
+            "exactMatch": 0,
+            "total": 0.17859090763997848
+          },
+          {
+            "slug": "cq-ga",
+            "lexical": 0.033068783068783074,
+            "category": 0.3,
+            "popularity": 0.6930511616085221,
+            "exactMatch": 0,
+            "total": 0.17635397008085335
+          },
+          {
+            "slug": "ui-ux-pro-max-skill",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.8439996099928865,
+            "exactMatch": 0,
+            "total": 0.17627995319914636
           },
           {
             "slug": "openclaw-workflow-engine",
@@ -26432,60 +26464,28 @@
             "total": 0.16802029023923756
           },
           {
-            "slug": "synth-115",
-            "lexical": 0.10582010582010583,
-            "category": 0,
-            "popularity": 0.46399156917184675,
-            "exactMatch": 0.5,
-            "total": 0.15388004650167983
-          },
-          {
-            "slug": "composio-root-cause-tracing",
-            "lexical": 0.10582010582010583,
-            "category": 0,
-            "popularity": 0.769601617530497,
+            "slug": "oc-canvas",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.7269238615568338,
             "exactMatch": 0,
-            "total": 0.15055325230471786
+            "total": 0.16223086338682002
           },
           {
-            "slug": "synth-027",
-            "lexical": 0.11243386243386244,
-            "category": 0,
-            "popularity": 0.7068956501941251,
-            "exactMatch": 0,
-            "total": 0.14666610236191935
-          },
-          {
-            "slug": "synth-124",
-            "lexical": 0.10582010582010583,
-            "category": 0,
-            "popularity": 0.3741151907357066,
-            "exactMatch": 0.5,
-            "total": 0.143094881089343
-          },
-          {
-            "slug": "cq-forensics",
-            "lexical": 0.10582010582010583,
-            "category": 0,
-            "popularity": 0.6930511616085221,
-            "exactMatch": 0,
-            "total": 0.14136719759408084
-          },
-          {
-            "slug": "cq-root-cause",
-            "lexical": 0.0925925925925926,
-            "category": 0,
-            "popularity": 0.7509583829711157,
-            "exactMatch": 0,
-            "total": 0.1410409318824598
-          },
-          {
-            "slug": "cq-meeting-insights",
-            "lexical": 0.0925925925925926,
-            "category": 0,
+            "slug": "oc-model-usage",
+            "lexical": 0,
+            "category": 0.3,
             "popularity": 0.711692307934565,
             "exactMatch": 0,
-            "total": 0.13632900287807373
+            "total": 0.16040307695214778
+          },
+          {
+            "slug": "cq-datadog",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.6930511616085221,
+            "exactMatch": 0,
+            "total": 0.15816613939302265
           }
         ]
       },
@@ -26665,18 +26665,66 @@
           {
             "slug": "oc-model-usage",
             "lexical": 0.17361111111111113,
-            "category": 0,
+            "category": 0.3,
             "popularity": 0.711692307934565,
             "exactMatch": 0,
-            "total": 0.18088918806325893
+            "total": 0.2558891880632589
+          },
+          {
+            "slug": "cq-mixpanel",
+            "lexical": 0.011574074074074075,
+            "category": 0.6,
+            "popularity": 0.669020120235193,
+            "exactMatch": 0,
+            "total": 0.2366481551689639
           },
           {
             "slug": "cq-linear",
             "lexical": 0.0925925925925926,
-            "category": 0,
+            "category": 0.3,
             "popularity": 0.711692307934565,
             "exactMatch": 0,
-            "total": 0.13632900287807373
+            "total": 0.2113290028780737
+          },
+          {
+            "slug": "ui-ux-pro-max-skill",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.8439996099928865,
+            "exactMatch": 0,
+            "total": 0.17627995319914636
+          },
+          {
+            "slug": "cq-ga",
+            "lexical": 0.011574074074074075,
+            "category": 0.3,
+            "popularity": 0.6930511616085221,
+            "exactMatch": 0,
+            "total": 0.16453188013376338
+          },
+          {
+            "slug": "oc-canvas",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.7269238615568338,
+            "exactMatch": 0,
+            "total": 0.16223086338682002
+          },
+          {
+            "slug": "cq-datadog",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.6930511616085221,
+            "exactMatch": 0,
+            "total": 0.15816613939302265
+          },
+          {
+            "slug": "obsidian-dataview-skills",
+            "lexical": 0,
+            "category": 0.3,
+            "popularity": 0.6818965920928747,
+            "exactMatch": 0,
+            "total": 0.15682759105114497
           },
           {
             "slug": "openclaw-core",
@@ -26693,54 +26741,6 @@
             "popularity": 0.9915072751091522,
             "exactMatch": 0,
             "total": 0.11898087301309826
-          },
-          {
-            "slug": "ai-tools-system-prompts",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9686987716741335,
-            "exactMatch": 0,
-            "total": 0.11624385260089602
-          },
-          {
-            "slug": "openclaw-skills-manager",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9433472989444598,
-            "exactMatch": 0,
-            "total": 0.11320167587333517
-          },
-          {
-            "slug": "openclaw-workflow-engine",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9193096446255002,
-            "exactMatch": 0,
-            "total": 0.11031715735506002
-          },
-          {
-            "slug": "claude-code-cli",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9146550247694006,
-            "exactMatch": 0,
-            "total": 0.10975860297232808
-          },
-          {
-            "slug": "anthropic-docx",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
-          },
-          {
-            "slug": "anthropic-official-skills",
-            "lexical": 0,
-            "category": 0,
-            "popularity": 0.9145430489444443,
-            "exactMatch": 0,
-            "total": 0.10974516587333331
           }
         ]
       },
@@ -27869,7 +27869,7 @@
           {
             "slug": "cq-csv-summarizer",
             "lexical": 0.154320987654321,
-            "category": 0,
+            "category": 0.3,
             "popularity": 0.7398023219560924,
             "exactMatch": 0,
             "total": 0.17365282184460765
@@ -27877,7 +27877,7 @@
           {
             "slug": "obsidian-dataview-skills",
             "lexical": 0.14660493827160495,
-            "category": 0,
+            "category": 0.3,
             "popularity": 0.6818965920928747,
             "exactMatch": 0,
             "total": 0.16246030710052767
@@ -28881,7 +28881,7 @@
           {
             "slug": "oc-model-usage",
             "lexical": 0.17361111111111113,
-            "category": 0,
+            "category": 0.3,
             "popularity": 0.711692307934565,
             "exactMatch": 0,
             "total": 0.18088918806325893
@@ -28889,7 +28889,7 @@
           {
             "slug": "cq-linear",
             "lexical": 0.0925925925925926,
-            "category": 0,
+            "category": 0.3,
             "popularity": 0.711692307934565,
             "exactMatch": 0,
             "total": 0.13632900287807373

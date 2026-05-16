@@ -1,9 +1,16 @@
 import { installSkillWithPersistence } from "@/lib/services/skill-curation";
+import { logSkillUse } from "@/lib/services/dogfood-logger";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 
 const bodySchema = z
-  .object({ force: z.boolean().optional() })
+  .object({
+    force: z.boolean().optional(),
+    // SOL-1018: optional dogfood click-through attribution. Client passes
+    // dogfoodQueryId + rank when install was triggered from a match result.
+    dogfoodQueryId: z.string().optional(),
+    rank: z.number().int().min(1).max(50).optional(),
+  })
   .optional();
 
 function statusForError(kind: string): number {
@@ -46,6 +53,16 @@ export async function POST(
         { status: statusForError(result.error.kind) }
       );
     }
+
+    // SOL-1018 dogfood: log the install as a click-through event so the report
+    // generator can compute CTR per rank position. Fire-and-forget; never blocks
+    // the install response on logger failure.
+    await logSkillUse({
+      skillId: id,
+      useType: "install",
+      userQueryId: parsed.data?.dogfoodQueryId ?? null,
+      rank: parsed.data?.rank ?? null,
+    });
 
     return NextResponse.json({
       data: {
