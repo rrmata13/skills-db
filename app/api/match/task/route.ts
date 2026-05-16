@@ -26,14 +26,14 @@ export async function POST(request: NextRequest) {
     }
 
     const { query, filters, limit } = parsed.data;
-    const { results, queryType } = await matchSingleTask(
+    const { results, queryType, dogfoodQueryId } = await matchSingleTask(
       query.trim(),
       filters,
       limit
     );
 
     return NextResponse.json({
-      data: { results },
+      data: { results, dogfoodQueryId },
       error: null,
       meta: { queryType, total: results.length },
     });

@@ -64,6 +64,13 @@ CATEGORY_KEYWORDS: Mapping[str, Sequence[str]] = {
     "multi-agent": ["agent", "multi-agent", "orchestrat", "coordinate", "parallel"],
     "skills-collection": ["collection", "curated", "awesome", "list", "directory", "marketplace"],
     "integration": ["integrat", "connect", "api", "webhook", "plugin", "connector"],
+    # SOL-989 additions (Codex R6 GO_WITH_CHANGES applied; mirror of scoring.ts):
+    "analytics": ["analytics", "tracking", "measure", "metric", "instrument", "dashboard", "telemetry", "segment"],
+    "user-research": ["interview", "research", "discovery", "feedback", "survey", "ethnography", "persona", "journey"],
+    # product-strategy: dropped `wedge`, `validate` per Codex R6
+    "product-strategy": ["strategy", "hypothesis", "assumption", "experiment", "positioning", "moat"],
+    # data-science: dropped single-token `analysis` per Codex R6
+    "data-science": ["pandas", "jupyter", "dataframe", "statistic", "regression", "ipynb", "numpy"],
 }
 
 # ---------------------------------------------------------------------------
@@ -271,6 +278,13 @@ CATEGORY_SYNONYMS: Mapping[str, Sequence[Sequence[str]]] = {
     "multi-agent": [["multi", "agent"], ["agent", "swarm"], ["agent", "coordination"]],
     "skills-collection": [["awesome", "list"], ["curated", "list"]],
     "integration": [["webhook", "url"], ["api", "client"], ["third", "party"]],
+    # SOL-989 additions (Codex R6 GO_WITH_CHANGES applied; mirror of scoring.ts):
+    "analytics": [["event", "tracking"], ["conversion", "rate"], ["tag", "manager"], ["user", "behavior"], ["product", "metrics"]],
+    "user-research": [["user", "research"], ["user", "interview"], ["customer", "interview"], ["user", "feedback"], ["nps", "responses"], ["jobs", "done"]],
+    # product-strategy: dropped icp-definition, validate-assumption, go-market per Codex R6
+    "product-strategy": [["product", "strategy"], ["product", "launch"], ["risky", "assumption"], ["product", "hypothesis"]],
+    # data-science: dropped data-analysis, statistical-analysis (analysis kw dropped) per Codex R6
+    "data-science": [["jupyter", "notebook"], ["pandas", "dataframe"], ["time", "series"], ["csv", "import"]],
 }
 
 

@@ -1,7 +1,14 @@
 import { classifyInput } from "./classifier";
 import { parseMultipleTasks, parsePlan } from "./parser";
 import { scoreSkills } from "./scoring";
+import { logSingleTaskQuery, logMultiTaskQuery, logPlanQuery } from "./dogfood-logger";
 import { MatchResult, TaskMatchResult, PlanDecomposition, QueryType } from "@/types";
+
+// SOL-1018: every match function persists the query + per-match results to the
+// local SQLite DB for dogfood analysis. Returns a `dogfoodQueryId` so callers
+// (API routes) can attach click-through events later via logSkillUse().
+// Persistence is fire-and-forget — failures are logged to console.warn but never
+// block the match response.
 
 export async function matchSingleTask(
   query: string,
@@ -12,9 +19,10 @@ export async function matchSingleTask(
     tags?: string[];
   },
   limit = 5
-): Promise<{ results: MatchResult[]; queryType: QueryType }> {
+): Promise<{ results: MatchResult[]; queryType: QueryType; dogfoodQueryId: string | null }> {
   const results = await scoreSkills(query, filters, limit);
-  return { results, queryType: "single_task" };
+  const dogfoodQueryId = await logSingleTaskQuery(query, results);
+  return { results, queryType: "single_task", dogfoodQueryId };
 }
 
 export async function matchMultipleTasks(
@@ -26,7 +34,7 @@ export async function matchMultipleTasks(
     tags?: string[];
   },
   limit = 5
-): Promise<{ results: TaskMatchResult[]; queryType: QueryType }> {
+): Promise<{ results: TaskMatchResult[]; queryType: QueryType; dogfoodQueryId: string | null }> {
   const results: TaskMatchResult[] = [];
 
   for (let i = 0; i < queries.length; i++) {
@@ -41,7 +49,8 @@ export async function matchMultipleTasks(
     });
   }
 
-  return { results, queryType: "multi_task" };
+  const dogfoodQueryId = await logMultiTaskQuery(queries.join("\n"), results);
+  return { results, queryType: "multi_task", dogfoodQueryId };
 }
 
 export async function matchPlan(
@@ -53,7 +62,7 @@ export async function matchPlan(
     tags?: string[];
   },
   limit = 3
-): Promise<PlanDecomposition> {
+): Promise<PlanDecomposition & { dogfoodQueryId: string | null }> {
   const tasks = parsePlan(planText);
   const allSkillIds = new Set<string>();
 
@@ -77,6 +86,8 @@ export async function matchPlan(
       ? allScores.reduce((a, b) => a + b, 0) / allScores.length
       : 0;
 
+  const dogfoodQueryId = await logPlanQuery(planText, planTasks);
+
   return {
     tasks: planTasks,
     summary: {
@@ -84,6 +95,7 @@ export async function matchPlan(
       uniqueSkillsMatched: allSkillIds.size,
       averageConfidence: Math.round(avgConfidence * 1000) / 1000,
     },
+    dogfoodQueryId,
   };
 }
 

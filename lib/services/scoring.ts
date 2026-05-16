@@ -22,7 +22,11 @@ export interface SkillRecord {
   capabilities: { capability: string }[];
 }
 
-// Category keyword mapping for rule-based matching
+// Category keyword mapping for rule-based matching.
+// SOL-989 added 4 new categories (analytics, user-research, product-strategy,
+// data-science) to close gaps surfaced by SOL-986 cell-A diagnostic. Codex R6
+// (2026-05-15) returned GO_WITH_CHANGES; revised keyword lists below applied.
+// All keywords ≥4 chars per SOL-990 AI-3 length discipline (no substring noise).
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   coding: ["code", "programming", "develop", "software", "debug", "refactor", "test", "review"],
   "workflow-automation": ["automate", "workflow", "pipeline", "orchestrate", "schedule", "trigger", "process"],
@@ -36,6 +40,13 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   "multi-agent": ["agent", "multi-agent", "orchestrat", "coordinate", "parallel"],
   "skills-collection": ["collection", "curated", "awesome", "list", "directory", "marketplace"],
   integration: ["integrat", "connect", "api", "webhook", "plugin", "connector"],
+  // SOL-989 additions (Codex R6 GO_WITH_CHANGES applied):
+  analytics: ["analytics", "tracking", "measure", "metric", "instrument", "dashboard", "telemetry", "segment"],
+  "user-research": ["interview", "research", "discovery", "feedback", "survey", "ethnography", "persona", "journey"],
+  // product-strategy: dropped `wedge` (Card-033 vocab leakage), `validate` (collision risk)
+  "product-strategy": ["strategy", "hypothesis", "assumption", "experiment", "positioning", "moat"],
+  // data-science: dropped single-token `analysis` (too generic per Codex R6)
+  "data-science": ["pandas", "jupyter", "dataframe", "statistic", "regression", "ipynb", "numpy"],
 };
 
 async function getAllSkills(): Promise<SkillRecord[]> {
@@ -209,7 +220,9 @@ function computeSemanticScore(
 // NO LLM call (per Codex R5 — "smallest revision is not full embeddings everywhere").
 // NO substring on short fragments (per Codex R5 Q1).
 
-// Starter synonym bigrams. Founder expands in SOL-989 (taxonomy expansion).
+// Synonym bigrams. SOL-989 (Codex R6 GO_WITH_CHANGES) added 4 new entries:
+// analytics, user-research, product-strategy, data-science. Founder may further
+// expand in future iterations.
 // Each entry: [token1, token2] — must appear adjacent in query (ordered) to fire.
 const CATEGORY_SYNONYMS: Record<string, string[][]> = {
   coding: [["unit", "test"], ["code", "review"], ["bug", "fix"], ["pull", "request"], ["lint", "format"]],
@@ -224,6 +237,13 @@ const CATEGORY_SYNONYMS: Record<string, string[][]> = {
   "multi-agent": [["multi", "agent"], ["agent", "swarm"], ["agent", "coordination"]],
   "skills-collection": [["awesome", "list"], ["curated", "list"]],
   integration: [["webhook", "url"], ["api", "client"], ["third", "party"]],
+  // SOL-989 additions (Codex R6 GO_WITH_CHANGES applied):
+  analytics: [["event", "tracking"], ["conversion", "rate"], ["tag", "manager"], ["user", "behavior"], ["product", "metrics"]],
+  "user-research": [["user", "research"], ["user", "interview"], ["customer", "interview"], ["user", "feedback"], ["nps", "responses"], ["jobs", "done"]],
+  // product-strategy: dropped `["icp", "definition"]` (Card-033 vocab), `["validate", "assumption"]` (validate kw dropped), `["go", "market"]` (replaced with product-launch per Codex)
+  "product-strategy": [["product", "strategy"], ["product", "launch"], ["risky", "assumption"], ["product", "hypothesis"]],
+  // data-science: dropped `["data", "analysis"]`, `["statistical", "analysis"]` (analysis kw dropped per Codex)
+  "data-science": [["jupyter", "notebook"], ["pandas", "dataframe"], ["time", "series"], ["csv", "import"]],
 };
 
 export function detectQueryCategories(query: string): string[] {
